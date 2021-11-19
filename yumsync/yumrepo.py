@@ -314,7 +314,7 @@ class YumRepo(object):
 
     def _validate_packages(self, directory, packages):
         if hasattr(rpm, "RPMVSF_MASK_NOSIGNATURES"):
-            no_signature_check__mask = rpm.RPMVSF_MASK_NOSIGNATURES
+            no_signature_check_mask = rpm.RPMVSF_MASK_NOSIGNATURES
         else:
             no_signature_check_mask = rpm.RPMVSF_NODSAHEADER | rpm.RPMVSF_NORSAHEADER | rpm.RPMVSF_NODSA | rpm.RPMVSF_NORSA
         ts = rpm.TransactionSet("/", no_signature_check_mask)
