@@ -208,7 +208,7 @@ def main():
     if SHOWONLY == True:
         logging.basicConfig(format='%(message)s',level=logging.DEBUG)
     else:
-        logging.basicConfig(filename='yumsync.log', format='%(message)s',level=logging.DEBUG)
+        logging.basicConfig(filename='/var/log/yumsync.log', format='%(message)s',level=logging.INFO)
 
     if SHOWVERSION == True:
         print(yumsync.__version__)
