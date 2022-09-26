@@ -70,6 +70,8 @@ class YumRepo(object):
         self.labels = opts['labels']
         self._dnfcache_file = util.TemporaryDirectory(prefix='yumsync-', suffix='-dnfcache')
         self._dnfcache = self._dnfcache_file.name
+        self.filters = opts['filters']
+        self.keep_local = opts['keep_local']
 
         # root directory for repo and packages
         self.dir = os.path.join(base_dir, self._friendly(self.id))
@@ -155,6 +157,10 @@ class YumRepo(object):
             opts['newestonly'] = None
         if 'labels' not in opts:
             opts['labels'] = {}
+        if 'filters' not in opts:
+            opts['filters'] = []
+        if 'keep_local' not in opts:
+            opts['keep_local'] = False
         return opts
 
     @classmethod
@@ -193,9 +199,19 @@ class YumRepo(object):
         for label, value in six.iteritems(opts['labels']):
             cls._validate_type(label, 'label_name_{}'.format(label), str)
             cls._validate_type(value, 'label_value_{}'.format(label), str)
-
+        cls._validate_type(opts['filters'], 'filters', list)
+        for filter_item in opts['filters']:
+            for filter_keyop, filter_value in six.iteritems(filter_item):
+                filter_key, filter_op = filter_keyop.split("__", maxsplit=2)
+                cls._validate_type(filter_key, 'filter key', str)
+                assert filter_key in ['arch', 'downgrades', 'empty', 'epoch', 'file', 'latest', 'latest_per_arch', 'name', 'release', 'reponame', 'version', 'pkg', 'provides', 'sourcerpm', 'upgrades', 'requires', 'conflicts', 'obsoletes', 'enhances', 'recommends', 'suggests', 'supplements']
+                if filter_op is not None:
+                    cls._validate_type(filter_op, 'filter operator', str)
+                    assert filter_op in ['eq', 'glob', 'gt', 'gte', 'lt', 'lte', 'neq', 'substr', 'eqg', 'upgrade']
+                cls._validate_type(filter_value, 'filter value', str)
         if opts['baseurl'] is not None and opts['local_dir'] is not None:
             raise ValueError('Repo {} cannot be configured with local_dir and baseurl at the same time'.format(repoid))
+        cls._validate_type(opts['keep_local'], 'keep_local', bool)
 
     @staticmethod
     def _sanitize(text):
@@ -392,12 +408,20 @@ class YumRepo(object):
         return matches
 
     def _download_local_packages(self):
+        self._callback('repo_init', 0, True)
+        yb = dnf.Base()
+        yb.conf.cachedir = self._dnfcache
+        yb.conf.debuglevel = 0
+        yb.conf.errorlevel = 3
+        yb.fill_sack()
+
         try:
             packages = {}
             nb_packages = 0
             self._callback('repo_init', nb_packages, True)
             if isinstance(self.local_dir, str):
                 files = self._find_rpms(self.local_dir)
+                yb.add_remote_rpms([self.local_dir + file for file in files])
                 packages = {(None, self.local_dir): self._validate_packages(self.local_dir, files)}
                 nb_packages += len(packages[(None, self.local_dir)])
             elif isinstance(self.local_dir, list):
@@ -405,6 +429,7 @@ class YumRepo(object):
                 files = {}
                 for idx, local_dir in enumerate(self.local_dir):
                     files[(idx, local_dir)] = self._find_rpms(local_dir)
+                    yb.add_remote_rpms([local_dir + file for file in files[(idx, local_dir)]])
                     nb_packages += len(files[(idx,local_dir)])
                     self._callback('repo_init', nb_packages, True)
                 for local_dir_idx, rpm_files in six.iteritems(files):
@@ -427,7 +452,46 @@ class YumRepo(object):
                             size = os.path.getsize(os.path.join(_dir[1], _file))
                             self._callback('link_local_pkg', _file, size)
 
+            p_query = yb.sack.query().available()
+            if self.newestonly:
+                p_query = p_query.latest()
             self._callback('repo_complete')
+            packages = []
+            for filter_item in self.filters:
+                logging.debug("Filtering with item {}, this will be ORed with the next ones".format(filter_item))
+                p_query_filtered = None
+                for filter_key, filter_value in six.iteritems(filter_item):
+                    if p_query_filtered is None:
+                        nb_packages_before = len(list(p_query))
+                    else:
+                        nb_packages_before = len(list(p_query_filtered))
+
+                    logging.debug(
+                        "Filtering repo {} with filter {}, {} packages before filtering".format(
+                        self.id,
+                        filter_key+" : "+filter_value,
+                        nb_packages_before
+                        )
+                    )
+
+                    if p_query_filtered is None:
+                        p_query_filtered = p_query.filter(**{filter_key: filter_value})
+                    else:
+                        p_query_filtered.filterm(**{filter_key: filter_value})
+                        logging.debug(
+                            "Done filtering repo {} with filter {}, {} packages after filtering".format(
+                                self.id,
+                                filter_key+" : "+filter_value,
+                                len(list(p_query_filtered))
+                            )
+                        )
+                packages += list(p_query_filtered)
+            packages = list(dict.fromkeys(packages))
+            self._packages = []
+            for po in packages:
+                local = po.localPkg()
+                self._packages.append(os.path.basename(local))
+            logging.debug(self._packages)
         except (KeyboardInterrupt, SystemExit):
             pass
         except Exception as e:
@@ -447,7 +511,37 @@ class YumRepo(object):
         p_query = yb.sack.query().available()
         if self.newestonly:
             p_query = p_query.latest()
-        packages = list(p_query)
+        packages = []
+        for filter_item in self.filters:
+            logging.debug("Filtering with item {}, this will be ORed with the next ones".format(filter_item))
+            p_query_filtered = None
+            for filter_key, filter_value in six.iteritems(filter_item):
+                if p_query_filtered is None:
+                    nb_packages_before = len(list(p_query))
+                else:
+                    nb_packages_before = len(list(p_query_filtered))
+
+                logging.debug(
+                    "Filtering repo {} with filter {}, {} packages before filtering".format(
+                        self.id,
+                        filter_key+" : "+filter_value,
+                        nb_packages_before
+                    )
+                )
+
+                if p_query_filtered is None:
+                    p_query_filtered = p_query.filter(**{filter_key: filter_value})
+                else:
+                    p_query_filtered.filterm(**{filter_key: filter_value})
+                logging.debug(
+                    "Done filtering repo {} with filter {}, {} packages after filtering".format(
+                        self.id,
+                        filter_key+" : "+filter_value,
+                        len(list(p_query_filtered))
+                    )
+                )
+            packages += list(p_query_filtered)
+        packages = list(dict.fromkeys(packages))
         # Inform about number of packages total in the repo.
         # Check if the packages are already downloaded. This is probably a bit
         # expensive, but the alternative is simply not knowing, which is
@@ -504,7 +598,7 @@ class YumRepo(object):
                     if _file not in self._packages:
                         os.unlink(os.path.join(self.package_dir, _file))
                         self._callback('delete_pkg', _file)
-        else:
+        elif self.keep_local:
             packages_to_validate = sorted(list(set(os.listdir(self.package_dir)) - set(self._packages)))
             self._packages.extend(self._validate_packages(self.package_dir, packages_to_validate))
 
