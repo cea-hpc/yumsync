@@ -442,10 +442,12 @@ class ProgressCallback(object):
         self.send(repo_id, 'link_local_pkg', pkgname, size)
 
 class DownloadProgress(dnf.callback.DownloadProgress):
-    def __init__(self, callback):
+    def __init__(self, callback, repoid):
         self.callback = callback
+        self.repoid = repoid
 
     def start(self, total_files, total_size, total_drpms=0):
+        logging.debug("Starting to download a batch of {} files of repo '{}'".format(total_files, self.repoid))
         self.callback('repo_init', total_files)
 
     def progress(self, payload, done):
@@ -453,5 +455,13 @@ class DownloadProgress(dnf.callback.DownloadProgress):
 
     def end(self, payload, status, msg):
         file_name = payload.__str__()
+        states = {
+            2: "STATUS_ALREADY_EXISTS",
+            4: "STATUS_DRPM",
+            1: "STATUS_FAILED",
+            3: "STATUS_MIRROR",
+            None: "STATUS_OK"
+        }
+        logging.debug("Done downloading {} of repo '{}', status={}".format(file_name, self.repoid, states.get(status, status)))
         if status == dnf.callback.STATUS_OK:
             self.callback('pkg_exists', file_name)

@@ -312,6 +312,7 @@ class YumRepo(object):
         self.version_packages()
 
     def download_packages(self):
+        logging.info("Starting to download packages of repo {}".format(self.id))
         if self.local_dir:
             self._download_local_packages()
         else:
@@ -435,6 +436,7 @@ class YumRepo(object):
 
     def _download_remote_packages(self):
         self._callback('repo_init', 0, True)
+        logging.info("Downloading repo metadata for {}".format(self.id))
         yb = dnf.Base()
         yb.conf.cachedir = self._dnfcache
         yb.conf.debuglevel = 0
@@ -450,6 +452,7 @@ class YumRepo(object):
         # Check if the packages are already downloaded. This is probably a bit
         # expensive, but the alternative is simply not knowing, which is
         # horrible for progress indication.
+        logging.info("Done gathering repo metadata for {}, downloading packages ({} packages)".format(self.id, len(packages)))
         if packages:
             self._callback('repo_init', len(packages), True)
             for po in packages:
@@ -458,7 +461,7 @@ class YumRepo(object):
                 if os.path.exists(local):
                     self._callback('pkg_exists', os.path.basename(local))
             try:
-                yb.download_packages(packages, progress=progress.DownloadProgress(self._callback))
+                yb.download_packages(packages, progress=progress.DownloadProgress(self._callback, self.id))
             except (KeyboardInterrupt, SystemExit):
                 return
             except dnf.exceptions.DownloadError as e:
@@ -466,6 +469,7 @@ class YumRepo(object):
             except Exception as e:
                 self._callback('repo_error', str(e))
                 raise PackageDownloadError(str(e))
+        logging.info("Done downloading repo packages for {}".format(self.id))
         self._callback('repo_complete')
 
     def deduplicate_rpm(self):
