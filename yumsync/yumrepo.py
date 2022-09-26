@@ -32,7 +32,7 @@ from yumsync import progress
 
 from threading import Lock
 
-from itertools import izip_longest, islice, chain
+from itertools import islice, chain
 
 class MetadataBuildError(Exception):
     def __init__(self, *args, **kwargs):
