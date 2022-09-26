@@ -208,7 +208,7 @@ def main():
     if SHOWONLY == True:
         logging.basicConfig(format='%(message)s',level=logging.DEBUG)
     else:
-        logging.basicConfig(filename='/var/log/yumsync.log', format='%(message)s',level=logging.INFO)
+        logging.basicConfig(filename=LOGFILE, format='%(message)s',level=logging.INFO)
 
     if SHOWVERSION == True:
         print(yumsync.__version__)
@@ -284,6 +284,8 @@ if __name__ == '__main__':
         help='Only recreate symlinks based on absolute paths')
     parser.add_argument('-S', '--sequential', action='store_true', default=False,
         help='Do not parallelize builds. Disables progress interface')
+    parser.add_argument('-l', '--logfile', action='store', default='/var/log/yumsync.log',
+        help='Path to log file, defaults to /var/log/yumsync.log')
 
     args = parser.parse_args()
     REPOFILE     = args.config
@@ -298,4 +300,5 @@ if __name__ == '__main__':
     WORKERS      = int(args.worker)
     RELOCATE     = args.relocate
     SEQUENTIAL   = args.sequential
+    LOGFILE      = args.logfile
     main()
