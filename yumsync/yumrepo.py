@@ -49,7 +49,7 @@ class YumRepo(object):
         if opts is None:
             opts = {}
         opts = self._set_default_opts(opts)
-        self._validate_opts(opts)
+        self._validate_opts(opts, repoid)
         self._validate_type(base_dir, 'base_dir', str)
 
         self.id = repoid
@@ -158,7 +158,7 @@ class YumRepo(object):
         return opts
 
     @classmethod
-    def _validate_opts(cls, opts):
+    def _validate_opts(cls, opts, repoid):
         cls._validate_type(opts['baseurl'], 'baseurl', str, None)
         if isinstance(opts['baseurl'], str):
             cls._validate_url(opts['baseurl'])
@@ -193,6 +193,9 @@ class YumRepo(object):
         for label, value in six.iteritems(opts['labels']):
             cls._validate_type(label, 'label_name_{}'.format(label), str)
             cls._validate_type(value, 'label_value_{}'.format(label), str)
+
+        if opts['baseurl'] is not None and opts['local_dir'] is not None:
+            raise ValueError('Repo {} cannot be configured with local_dir and baseurl at the same time'.format(repoid))
 
     @staticmethod
     def _sanitize(text):
