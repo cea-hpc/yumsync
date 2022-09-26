@@ -51,7 +51,7 @@ class Progress(object):
         when repository metadata begins indexing and when it completes.
         """
         if not repo_id in self.repos:
-            self.repos[repo_id] = {'numpkgs':0, 'dlpkgs':0, 'repomd':''}
+            self.repos[repo_id] = {'numpkgs':0, 'dlpkgs':0, 'repomd':0}
             self.totals['md_total'] += 1
         if set_total:
             self.repos[repo_id]['numpkgs'] = set_total
@@ -62,9 +62,9 @@ class Progress(object):
             self.repos[repo_id]['dlpkgs'] += pkgs_downloaded
             self.totals['dlpkgs'] += pkgs_downloaded
         if repo_metadata:
-            self.repos[repo_id]['repomd'] = repo_metadata
             if repo_metadata == 'complete':
                 self.totals['md_complete'] += 1
+            self.repos[repo_id]['repomd'] = repo_metadata
         if repo_error:
             self.totals['errors'] += 1
             if self.repos[repo_id]['repomd'] != 'complete':
@@ -151,6 +151,12 @@ class Progress(object):
         dlpkgs = self.repos[repo_id]['dlpkgs']
         return self.represent_percent(dlpkgs, numpkgs, length)
 
+    def represent_repomd_percent(self, repo_id, length):
+        """ Display the percentage of packages downloaded in a repository. """
+        numpkgs = self.repos[repo_id]['numpkgs']
+        dlpkgs = self.repos[repo_id]['repomd']
+        return self.represent_percent(dlpkgs, numpkgs, length)
+
     def represent_total_percent(self, length):
         """ Display the overall percentage of downloaded packages. """
         numpkgs = self.totals['numpkgs']
@@ -178,8 +184,10 @@ class Progress(object):
         """ Display the current status of repository metadata. """
         if not self.repos[repo_id]['repomd']:
             return '{:^{}s}'.format('-', length)
-        else:
+        elif isinstance(self.repos[repo_id]['repomd'], str):
             return self.repos[repo_id]['repomd']
+        elif isinstance(self.repos[repo_id]['repomd'], int):
+            return self.represent_repomd_percent(repo_id, length)
 
     def represent_repo(self, repo_id, h1, h2, h3, h4, h5):
         """ Represent an entire repository in one line.

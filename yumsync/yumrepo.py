@@ -32,6 +32,8 @@ from yumsync import progress
 
 from threading import Lock
 
+from itertools import izip_longest, islice, chain
+
 class MetadataBuildError(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
@@ -613,13 +615,33 @@ class YumRepo(object):
         metadata_mutex = Lock()
 
         def collect_result(future):
-            self.metadata_progress += 1
-            self._callback('repo_metadata', int((self.metadata_progress+1)*100//self.total_pkgs))
+            ex = future.exception()
+            if ex is not None:
+                self._callback('repo_error', ex)
+                raise ex
+            pkgs = future.result()
+            metadata_mutex.acquire()
+            for pkg in pkgs:
+                pri_xml.add_pkg(pkg)
+                fil_xml.add_pkg(pkg)
+                oth_xml.add_pkg(pkg)
+                pri_db.add_pkg(pkg)
+                fil_db.add_pkg(pkg)
+                oth_db.add_pkg(pkg)
+            metadata_mutex.release()
+            self.metadata_progress += len(pkgs)
+            # self._callback('repo_metadata', self.metadata_progress)
+            self._callback('repo_metadata', self.metadata_progress)
 
-        def process_pkg(filename, href):
-            pkg = createrepo.package_from_rpm(filename)
-            pkg.location_href = href
-            return pkg
+        def process_pkg(filename_iter):
+            pkgs = []
+            for filename, href in filename_iter:
+                if filename is None:
+                    break
+                pkg = createrepo.package_from_rpm(filename)
+                pkg.location_href = href
+                pkgs.append(pkg)
+            return pkgs
 
         try:
             from concurrent.futures import ThreadPoolExecutor
@@ -627,25 +649,22 @@ class YumRepo(object):
         except:
             parallelize = False
 
+        def grouper(iterable, n):
+            it = iter(iterable)
+            while True:
+                chunk_it = islice(it, n)
+                try:
+                    first_el = next(chunk_it)
+                except StopIteration:
+                    return
+                yield chain((first_el,), chunk_it)
+
         if parallelize:
             with ThreadPoolExecutor(max_workers=self._workers) as executor:
-                futures = []
-                for filename in pkg_list:
-                    future = executor.submit(process_pkg, filename[0], filename[1])
+                # Group by chunks of Nb_worker*4
+                for chunk in grouper(pkg_list, self._workers * 4):
+                    future = executor.submit(process_pkg, chunk)
                     future.add_done_callback(collect_result)
-                    futures.append(future)
-                for future in futures:
-                    try:
-                        pkg = future.result(10)
-                    except Exception as exc:
-                        logging.exception("Thread generated an exception")
-                    else:
-                        pri_xml.add_pkg(pkg)
-                        fil_xml.add_pkg(pkg)
-                        oth_xml.add_pkg(pkg)
-                        pri_db.add_pkg(pkg)
-                        fil_db.add_pkg(pkg)
-                        oth_db.add_pkg(pkg)
         else:
             for idx, filename in enumerate(pkg_list):
                 process_pkg(filename[0], filename[1])
