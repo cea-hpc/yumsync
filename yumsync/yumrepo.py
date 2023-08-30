@@ -209,7 +209,7 @@ class YumRepo(object):
         base = dnf.Base()
         base.conf.cachedir = self._dnfcache
         base.conf.debuglevel = 0
-        base.conf.errorlevel = 3
+        base.conf.errorlevel = 0
         repo = dnf.repo.Repo(repoid.replace('/', '_'), base.conf)
         repo.baseurl = None
         repo.metalink = None
@@ -438,7 +438,7 @@ class YumRepo(object):
         yb = dnf.Base()
         yb.conf.cachedir = self._dnfcache
         yb.conf.debuglevel = 0
-        yb.conf.errorlevel = 3
+        yb.conf.errorlevel = 0
         repo = self._set_path(self.package_dir)
         yb.repos.add(repo)
         yb.fill_sack()
@@ -528,40 +528,33 @@ class YumRepo(object):
             elif isinstance(self.local_dir, list):
                 repo_dirs = [ l for l in self.local_dir ]
             for repo_dir in repo_dirs:
-                if not os.path.exists(os.path.join(repo_dir, 'repodata')):
-                    continue
-                yb = dnf.Base()
-                yb.conf.cachedir = self._dnfcache
-                yb.conf.debuglevel = 0
-                yb.conf.errorlevel = 3
-                repo = dnf.repo.Repo("yumsync_temp_md_repo", dnf.Base().conf)
-                repo.metalink = None
-                repo.mirrorlist = None
-                repo.baseurl = "file://{}".format(repo_dir)
-                yb.repos.add(repo)
-                yb.fill_sack()
                 repomds.append({
-                    ("modules", "modules.yaml"): repo.get_metadata_content('modules'),
-                    ("group", "comps.xml"): repo.get_metadata_content('group_gz'),
+                    ("modules", "modules.yaml"): util.get_local_repo_metadata_content(repo_dir, 'modules'),
+                    ("group", "comps.xml"): util.get_local_repo_metadata_content(repo_dir, 'group'),
                 })
+
             # Combine modular MD of each repo
-            # Only keep the first "comps" we find
+            # Concatenate modules, merge comps
             for repomd in repomds:
-                self._repomd[("modules", "modules.yaml")] += repomd.get(("modules", "modules.yaml"), "")
-                if self._repomd.get(("group", "comps.xml"), "") == "":
-                    self._repomd[("group", "comps.xml")] = repomd.get(("group", "comps.xml"), "")
+                if not repomd.get(("modules", "modules.yaml")):
+                    continue
+                self._repomd[("modules", "modules.yaml")] += repomd.get(("modules", "modules.yaml"))
+
+            self._repomd[("group", "comps.xml")] = util.merge_xml_content(
+                [ repomd[('group', 'comps.xml')] for repomd in repomds ]
+            )
         else:
             self._repomd = {
                 ("modules", "modules.yaml"): self.__repo_obj.get_metadata_content('modules'),
-                ("group", "comps.xml"): self.__repo_obj.get_metadata_content('group_gz'),
+                ("group", "comps.xml"): self.__repo_obj.get_metadata_content('group'),
             }
 
         if self._repomd:
             # Filter out empty metadata
             for k, v in six.iteritems(self._repomd.copy()):
-                if len(v) != 0:
-                    continue
-                self._repomd.pop(k)
+                if v is None or len(v) == 0:
+                    self._repomd.pop(k)
+
             self._callback('repo_group_data', 'available')
         else:
             self._callback('repo_group_data', 'unavailable')

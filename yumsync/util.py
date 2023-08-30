@@ -22,7 +22,8 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import os, tempfile, shutil
+import dnf, os, sys, tempfile, shutil
+import xml.etree.ElementTree
 
 try:
     from weakref import finalize
@@ -154,3 +155,42 @@ class TemporaryDirectory(object):
     def cleanup(self):
         if self._finalizer.detach():
             self._rmtree(self.name)
+
+def get_local_repo_metadata_content(repo_path, md_type):
+    if not os.path.exists(os.path.join(repo_path, 'repodata')):
+        return None
+    with TemporaryDirectory(prefix='yumsync-get_local_repo_metadata_content', suffix='-dnfcache') as dnf_cache_file:
+      yb = dnf.Base()
+      yb.conf.cachedir = dnf_cache_file
+      yb.conf.debuglevel = 0
+      yb.conf.errorlevel = 0
+      repo = dnf.repo.Repo("yumsync_temp_md_repo", dnf.Base().conf)
+      repo.metalink = None
+      repo.mirrorlist = None
+      repo.baseurl = "file://{}".format(repo_path)
+      yb.repos.add(repo)
+      yb.fill_sack()
+      data = repo.get_metadata_content(md_type)
+    if data is None or len(data) == 0:
+        return None
+    else:
+        return data
+
+def merge_xml_content(xml_strings):
+    # Remove empty/None items
+    xml_strings = [ s for s in xml_strings if s ]
+
+    # Return the input data if there is nothing to merge
+    if len(xml_strings) == 0:
+        return None
+    if len(xml_strings) == 1:
+        return xml_strings[0]
+
+    # Parse first item as the base object...
+    data = xml.etree.ElementTree.fromstring(xml_strings[0])
+
+    # And extend it with the next ones
+    for xml_string in xml_strings[1:]:
+        data.extend(xml.etree.ElementTree.fromstring(xml_string))
+
+    return xml.etree.ElementTree.tostring(data)
