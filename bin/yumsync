@@ -207,13 +207,6 @@ def print_summary(repos, errors, elapsed):
 def main():
     logging.basicConfig(filename=LOGFILE, format='%(asctime)s %(levelname)s : %(message)s',level=LOG_LEVEL)
 
-    def on_log(record):
-        if SEQUENTIAL:
-            print(record.levelname, ":", record.getMessage())
-        return True
-
-    logging.root.addFilter(on_log)
-
     if SHOWVERSION == True:
         print(yumsync.__version__)
         sys.exit(0)
@@ -230,14 +223,20 @@ def main():
             continue
 
     logging.info('{:d} repos to sync'.format(len(repos)))
+    if SHOWONLY:
+        print('{:d} repos to sync'.format(len(repos)))
     if len(repos) < 1: sys.exit(0)
 
     padding = len(str(len(repos)))
     for index, repo in enumerate(repos):
         repo_str = '{} (local)'.format(repo.id) if repo.local_dir else repo.id
         logging.info('{:{}d}) {}'.format(index + 1, padding, repo_str))
+        if SHOWONLY:
+            print('{:{}d}) {}'.format(index + 1, padding, repo_str))
     if SHOWONLY:
         logging.warning('Exiting without performing changes...')
+        if SHOWONLY:
+            print('Exiting without performing changes...')
         sys.exit(0)
 
     if STABLEONLY == True:
