@@ -568,7 +568,6 @@ class YumRepo(object):
 
     def deduplicate_rpm(self):
         nevra_index = set()
-        print(len(self._packages))
         for pkg_path, pkg_header in six.iteritems(self._package_headers):
             if pkg_header is not None:
                 nevra = "{}-{}-{}-{}.{}".format(
