@@ -599,7 +599,19 @@ class YumRepo(object):
                         self._callback('delete_pkg', _file)
         elif self.keep_local:
             packages_to_validate = sorted(list(set(os.listdir(self.package_dir)) - set(self._packages)))
-            self._packages.extend(self._validate_packages(self.package_dir, packages_to_validate))
+            nb_packages = len(self._packages) + len(packages_to_validate)
+            self._callback('repo_init', nb_packages, True)
+            packages = {(None, self.package_dir): self._validate_packages(self.package_dir, packages_to_validate)}
+            for _dir, _files in six.iteritems(packages):
+                for _file, _hdr in _files:
+                    if _dir[0] is not None and isinstance(_dir[0], int):
+                        package_dir = os.path.join(self.package_dir, "repo_{}".format(_dir[0]))
+                        file_path = os.path.join("repo_{}".format(_dir[0]), _file)
+                    else:
+                        package_dir = self.package_dir
+                        file_path = _file
+                    self._packages.append(file_path)
+                    self._package_headers[file_path] = _hdr
 
     def version_packages(self):
         # exit if we don't have packages
