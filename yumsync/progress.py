@@ -43,7 +43,7 @@ class Progress(object):
             sys.stdout.flush()
 
     def update(self, repo_id, set_total=None, pkgs_downloaded=None,
-               pkg_exists=None, repo_metadata=None, repo_error=None):
+               pkg_exists=None, repo_metadata=None, repo_error=None, pkgs_deleted=None):
         """ Handles updating the object itself.
 
         This method will be called any time the number of packages in
@@ -61,6 +61,9 @@ class Progress(object):
         if pkgs_downloaded:
             self.repos[repo_id]['dlpkgs'] += pkgs_downloaded
             self.totals['dlpkgs'] += pkgs_downloaded
+        if pkgs_deleted:
+            self.repos[repo_id]['dlpkgs'] -= pkgs_deleted
+            self.totals['dlpkgs'] -= pkgs_deleted
         if repo_metadata:
             if repo_metadata == 'complete':
                 self.totals['md_complete'] += 1

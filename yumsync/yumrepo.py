@@ -578,6 +578,7 @@ class YumRepo(object):
                     pkg_header['arch'])
                 if nevra in nevra_index:
                     self._packages.remove(pkg_path)
+                    self._callback('delete_pkg', pkg_path)
                 else:
                     nevra_index.add(nevra)
 

@@ -128,7 +128,7 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
                 elif event['action'] == 'repo_complete':
                     pass # should already know this, but handle it anyways.
                 elif event['action'] == 'delete_pkg':
-                    pass
+                    prog.update(event['repo_id'], pkgs_deleted=1)
                 elif event['action'] == 'repo_group_data':
                     pass
             for proc in process_results:
