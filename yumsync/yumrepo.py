@@ -27,6 +27,7 @@ import dnf, libdnf, rpm
 import six
 import yumsync.util as util
 import logging
+logger = logging.getLogger(__name__)
 
 from yumsync import progress
 
@@ -224,8 +225,8 @@ class YumRepo(object):
     def _get_repo_obj(self, repoid, localdir=None, baseurl=None, mirrorlist=None):
         base = dnf.Base()
         base.conf.cachedir = self._dnfcache
-        base.conf.debuglevel = 0
-        base.conf.errorlevel = 0
+        base.conf.debuglevel = 9
+        base.conf.errorlevel = 9
         repo = dnf.repo.Repo(repoid.replace('/', '_'), base.conf)
         repo.baseurl = None
         repo.metalink = None
@@ -503,8 +504,8 @@ class YumRepo(object):
         logging.info("Downloading repo metadata for {}".format(self.id))
         yb = dnf.Base()
         yb.conf.cachedir = self._dnfcache
-        yb.conf.debuglevel = 0
-        yb.conf.errorlevel = 0
+        yb.conf.debuglevel = 9
+        yb.conf.errorlevel = 9
         repo = self._set_path(self.package_dir)
         yb.repos.add(repo)
         yb.fill_sack()
@@ -919,7 +920,7 @@ class YumRepo(object):
         return '{}: {}'.format(self.id, ', '.join(friendly_info))
 
     def _callback(self, event, *args):
-        logging.debug("{}: Send event {} with args {}".format(type(self), event, args))
+        logger.debug("{}: Send event {} with args {}".format(type(self), event, args))
         if self.__repo_callback_obj and hasattr(self.__repo_callback_obj, event):
             method = getattr(self.__repo_callback_obj, event)
             method(self.id, *args)

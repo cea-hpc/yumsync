@@ -6,6 +6,8 @@ import logging
 import six
 import dnf
 
+logger = logging.getLogger(__name__)
+
 class Progress(object):
     """ Handle progress indication using callbacks.
 
@@ -324,7 +326,7 @@ class YumProgress(object):
         on the callback object before trying to invoke it, making all methods
         optional.
         """
-        logging.debug('{}: Got callback {}({})'.format(type(self), method, args))
+        logger.debug('{}: Got callback {}({})'.format(type(self), method, args))
         if self.usercallback and hasattr(self.usercallback, method):
             method = getattr(self.usercallback, method)
             try:
@@ -378,7 +380,7 @@ class ProgressCallback(object):
 
     def callback(self, repo_id, event, *args):
         """ Abstracts calling the user callback. """
-        logging.debug('{}: Got event for repo {}: {}'.format(type(self), repo_id, event))
+        logger.debug('{}: Got event for repo {}: {}'.format(type(self), repo_id, event))
         if self.usercallback and hasattr(self.usercallback, event):
             method = getattr(self.usercallback, event)
             try:
@@ -450,7 +452,7 @@ class DownloadProgress(dnf.callback.DownloadProgress):
         self.repoid = repoid
 
     def start(self, total_files, total_size, total_drpms=0):
-        logging.debug("Starting to download a batch of {} files of repo '{}'".format(total_files, self.repoid))
+        logger.debug("Starting to download a batch of {} files of repo '{}'".format(total_files, self.repoid))
         self.callback('repo_init', total_files)
 
     def progress(self, payload, done):
@@ -467,4 +469,10 @@ class DownloadProgress(dnf.callback.DownloadProgress):
         }
         logging.debug("Done downloading {} of repo '{}', status={}".format(file_name, self.repoid, states.get(status, status)))
         if status == dnf.callback.STATUS_OK:
+            logger.debug("Successfully downloaded {}".format(file_name))
             self.callback('pkg_exists', file_name)
+        else:
+            if status != dnf.callback.STATUS_FAILED:
+                logger.debug("Download status of {} is {}: {}".format(file_name, status, msg))
+            else:
+                logger.error("Download of {} errored: {}".format(file_name, status, msg))

@@ -162,8 +162,8 @@ def get_local_repo_metadata_content(repo_path, md_type):
     with TemporaryDirectory(prefix='yumsync-get_local_repo_metadata_content', suffix='-dnfcache') as dnf_cache_file:
       yb = dnf.Base()
       yb.conf.cachedir = dnf_cache_file
-      yb.conf.debuglevel = 0
-      yb.conf.errorlevel = 0
+      yb.conf.debuglevel = 9
+      yb.conf.errorlevel = 9
       repo = dnf.repo.Repo("yumsync_temp_md_repo", dnf.Base().conf)
       repo.metalink = None
       repo.mirrorlist = None

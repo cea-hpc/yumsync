@@ -22,6 +22,7 @@ except (ImportError, ModuleNotFoundError):
 import types
 
 import logging
+logger = logging.getLogger(__name__)
 
 import six
 import signal
@@ -86,10 +87,10 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
     signal.signal(signal.SIGTERM, signal_handler)
 
     def err_callback(exc):
-        logging.exception("A process ended with error")
+        logger.exception("A process ended with error")
 
     for repo in repos:
-        logging.debug("Setup callback and async job for repo {}".format(repo.id))
+        logger.debug("Setup callback and async job for repo {}".format(repo.id))
         prog.update(repo.id) # Add the repo to the progress object
         yumcallback = progress.YumProgress(repo.id, queue, callback)
         repocallback = progress.ProgressCallback(queue, callback)
@@ -110,7 +111,7 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
             # nonlocal keyword).
             while not queue.empty():
                 event = queue.get()
-                logging.info("Process queue event {}".format(event))
+                logger.info("Process queue event {}".format(event))
                 if not 'action' in event:
                     continue
                 if event['action'] == 'repo_init' and 'data' in event:
@@ -134,9 +135,9 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
             for proc in process_results:
                 if proc.ready():
                     if proc.successful():
-                        logging.info("A Process ended, removing from waiting list")
+                        logger.info("A Process ended, removing from waiting list")
                     else:
-                        logging.info("A Process ended with error, removing from waiting list")
+                        logger.info("A Process ended with error, removing from waiting list")
                     process_results.remove(proc)
     except KeyboardInterrupt:
         pool.terminate()

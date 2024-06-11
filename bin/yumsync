@@ -14,7 +14,7 @@ from yumsync.log import log
 from yumsync import yumrepo
 
 import logging
-
+logger = logging.getLogger(__name__)
 
 class mycallback(object):
     def __init__(self, log_dirs=None):
@@ -28,7 +28,7 @@ class mycallback(object):
             log_dir = None
         if repo_id:
             msg = '{}: {}'.format(repo_id, msg)
-        logging.info(msg)
+        logger.info(msg)
 
     @staticmethod
     def sizeof_fmt(num, suffix='B'):
@@ -42,7 +42,7 @@ class mycallback(object):
         if self.skippkg > 0:
             pkg_str = 'package' if self.skippkg == 1 else 'packages'
             reason = 'already available'
-            logging.info('skipping {:d} {} ({})'.format(self.skippkg, pkg_str, reason), repo_id=repo_id)
+            logger.info('skipping {:d} {} ({})'.format(self.skippkg, pkg_str, reason), repo_id=repo_id)
             self.skippkg = 0 # reset after printing
 
     def gpgkey_exists(self, repo_id, keyname):
@@ -111,16 +111,16 @@ def load_config():
             if type(config) != dict: raise SyntaxError
             return config
     except IOError as e:
-        logging.fatal("{0}: {1}".format(REPOFILE, e.strerror))
+        logger.fatal("{0}: {1}".format(REPOFILE, e.strerror))
         sys.exit(1)
     except SyntaxError as e:
-        logging.fatal('configuration file needs to resolve to a dictionary (hash)')
+        logger.fatal('configuration file needs to resolve to a dictionary (hash)')
         sys.exit(1)
     except yaml.YAMLError as e:
-        logging.fatal('unable to parse configuration file')
+        logger.fatal('unable to parse configuration file')
         if hasattr(e, 'problem_mark'):
             mark = e.problem_mark
-            logging.fatal('Error at Line {:d}, column {:d}'.format(mark.line+1, mark.column+1))
+            logger.fatal('Error at Line {:d}, column {:d}'.format(mark.line+1, mark.column+1))
         sys.exit(1)
 
 # filter repos passed via command line
@@ -143,34 +143,34 @@ def filter_repos(config):
 # setup public folders for repositories
 def setup_public(repos):
     for repo in repos:
-        logging.info("Setting up directories for {} repo".format(repo.id))
+        logger.info("Setting up directories for {} repo".format(repo.id))
         head, tail = os.path.split(repo.public_dir)
-        logging.debug("{}: Creating {} and {} directories".format(repo.id, repo.dir, head))
+        logger.debug("{}: Creating {} and {} directories".format(repo.id, repo.dir, head))
         util.make_dir(repo.dir)
         util.make_dir(head)
         # clean out symbolic_path if incorrect
         if os.path.islink(repo.public_dir):
             if os.readlink(repo.public_dir) != repo.dir:
-                logging.debug("{}: Removing {}".format(repo.id, repo.public_dir))
+                logger.debug("{}: Removing {}".format(repo.id, repo.public_dir))
                 os.unlink(repo.public_dir)
         elif os.path.isdir(repo.public_dir):
-            logging.debug("{}: Removing {} tree".format(repo.id, repo.public_dir))
+            logger.debug("{}: Removing {} tree".format(repo.id, repo.public_dir))
             shutil.rmtree(repo.public_dir)
         elif os.path.isfile(repo.public_dir):
-            logging.debug("{}: Removing {}".format(repo.id, repo.public_dir))
+            logger.debug("{}: Removing {}".format(repo.id, repo.public_dir))
             os.unlink(repo.public_dir)
         # setup symbolic link if missing
         if not os.path.lexists(repo.public_dir):
-            logging.debug("{}: Setting symlink {} -> {}".format(repo.id, repo.dir, repo.public_dir))
+            logger.debug("{}: Setting symlink {} -> {}".format(repo.id, repo.dir, repo.public_dir))
             os.symlink(repo.dir, repo.public_dir)
 
 def stable_links(repos):
-    logging.info('setting stable links')
+    logger.info('setting stable links')
     for repo in repos:
         if repo.version:
             if repo.stable:
                 util.symlink(os.path.join(repo.dir, 'stable'), repo.stable)
-                logging.info('{}: stable set to {}'.format(repo.id, repo.stable))
+                logger.info('{}: stable set to {}'.format(repo.id, repo.stable))
             else:
                 if os.path.lexists(os.path.join(repo.dir, 'stable')):
                     os.unlink(os.path.join(repo.dir, 'stable'))
@@ -181,14 +181,14 @@ def stable_links(repos):
                 os.unlink(os.path.join(repo.dir, 'stable'))
         for label, version in repo.labels.iteritems():
             util.symlink(os.path.join(repo.dir, label), version)
-            logging.info('{}: label set to {}'.format(label, version))
+            logger.info('{}: label set to {}'.format(label, version))
 
 def labels_links(repos):
-    logging.info('setting labels links')
+    logger.info('setting labels links')
     for repo in repos:
         for label, version in repo.labels.iteritems():
             util.symlink(os.path.join(repo.dir, label), version)
-            logging.info('{}: label set to {}'.format(label, version))
+            logger.info('{}: label set to {}'.format(label, version))
 
 def handle_repos(repos):
     log_dirs = {}
@@ -202,16 +202,17 @@ def handle_repos(repos):
 def print_summary(repos, errors, elapsed):
     repo_str = 'repository' if repos == 1 else 'repositories'
     error_str = 'error' if errors == 1 else 'errors'
-    logging.info('{:d} {}, {:d} {}, {}'.format(repos, repo_str, errors, error_str, elapsed))
+    logger.info('{:d} {}, {:d} {}, {}'.format(repos, repo_str, errors, error_str, elapsed))
 
 def main():
-    logging.basicConfig(filename=LOGFILE, format='%(asctime)s %(levelname)s : %(message)s',level=LOG_LEVEL)
+    # Set the configuration for the root logger
+    logging.basicConfig(filename=LOGFILE, format='%(asctime)s %(levelname)s:%(name)s:%(lineno)d : %(message)s',level=LOG_LEVEL)
 
     if SHOWVERSION == True:
         print(yumsync.__version__)
         sys.exit(0)
 
-    logging.info('Parsing configuration')
+    logger.info('Parsing configuration')
     repo_config = filter_repos(load_config())
 
     repos = []
@@ -219,10 +220,10 @@ def main():
         try:
             repos.append(yumrepo.YumRepo(repoid, OUTDIR, repo_config[repoid]))
         except Exception as e:
-            logging.info('{}: {} (skipping)'.format(repoid, e))
+            logger.info('{}: {} (skipping)'.format(repoid, e))
             continue
 
-    logging.info('{:d} repos to sync'.format(len(repos)))
+    logger.info('{:d} repos to sync'.format(len(repos)))
     if SHOWONLY:
         print('{:d} repos to sync'.format(len(repos)))
     if len(repos) < 1: sys.exit(0)
@@ -230,11 +231,11 @@ def main():
     padding = len(str(len(repos)))
     for index, repo in enumerate(repos):
         repo_str = '{} (local)'.format(repo.id) if repo.local_dir else repo.id
-        logging.info('{:{}d}) {}'.format(index + 1, padding, repo_str))
+        logger.info('{:{}d}) {}'.format(index + 1, padding, repo_str))
         if SHOWONLY:
             print('{:{}d}) {}'.format(index + 1, padding, repo_str))
     if SHOWONLY:
-        logging.warning('Exiting without performing changes...')
+        logger.warning('Exiting without performing changes...')
         if SHOWONLY:
             print('Exiting without performing changes...')
         sys.exit(0)
@@ -255,7 +256,7 @@ def main():
     if STABLEONLY == True or LABELSONLY == True or RELOCATE == True:
         sys.exit(0)
 
-    logging.info('Syncing repositories')
+    logger.info('Syncing repositories')
     setup_public(repos)
 
     repos, errors, elapsed = handle_repos(repos)
