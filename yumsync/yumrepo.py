@@ -552,8 +552,7 @@ class YumRepo(object):
             for po in packages:
                 local = po.localPkg()
                 self._packages.append(os.path.basename(local))
-                if os.path.exists(local):
-                    self._callback('pkg_exists', os.path.basename(local))
+                self._validate_packages(self.package_dir, local)
             try:
                 yb.download_packages(packages, progress=progress.DownloadProgress(self._callback, self.id))
             except (KeyboardInterrupt, SystemExit):
