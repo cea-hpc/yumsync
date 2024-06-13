@@ -190,14 +190,14 @@ def labels_links(repos):
             util.symlink(os.path.join(repo.dir, label), version)
             logger.info('{}: label set to {}'.format(label, version))
 
-def handle_repos(repos):
+def handle_repos(repos, temp_log_hdlr):
     log_dirs = {}
     for repo in repos:
         log_dirs[repo.id] = repo.log_dir
 
     mycallback_instance = mycallback(log_dirs)
 
-    return yumsync.sync(repos, mycallback_instance, processes=PROCESSES, workers=WORKERS, multiprocess=not SEQUENTIAL)
+    return yumsync.sync(repos, mycallback_instance, processes=PROCESSES, workers=WORKERS, multiprocess=not SEQUENTIAL, temp_log_hdlr=temp_log_hdlr)
 
 def print_summary(repos, errors, elapsed):
     repo_str = 'repository' if repos == 1 else 'repositories'
@@ -207,6 +207,9 @@ def print_summary(repos, errors, elapsed):
 def main():
     # Set the configuration for the root logger
     logging.basicConfig(filename=LOGFILE, format='%(asctime)s %(levelname)s:%(name)s:%(lineno)d : %(message)s',level=LOG_LEVEL)
+    console_hdlr = logging.StreamHandler(sys.stderr)
+    console_hdlr.setLevel(LOG_LEVEL)
+    logging.root.addHandler(console_hdlr)
 
     if SHOWVERSION == True:
         print(yumsync.__version__)
@@ -259,7 +262,7 @@ def main():
     logger.info('Syncing repositories')
     setup_public(repos)
 
-    repos, errors, elapsed = handle_repos(repos)
+    repos, errors, elapsed = handle_repos(repos, console_hdlr)
 
     print_summary(repos, errors, elapsed)
     sys.exit(0)

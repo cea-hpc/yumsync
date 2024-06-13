@@ -50,7 +50,7 @@ copy_reg.pickle(types.MethodType, pickle_method, unpickle_method)
 def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True):
+def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True, temp_log_hdlr=None):
     """ Mirror repositories with configuration data from multiple sources.
 
     Handles all input validation and higher-level logic before passing control
@@ -66,6 +66,11 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
         for repo in repos:
             repo.sync()
         sys.exit(0)
+
+    # Unset console handlers, as the progress UI will take over
+    if temp_log_hdlr:
+        logging.debug("Removing console logging handler, progress UI to take over")
+        logging.root.removeHandler(temp_log_hdlr)
 
     prog = progress.Progress()  # callbacks talk to this object
     logging.root.addHandler(prog.log_handler(logging.WARNING))
