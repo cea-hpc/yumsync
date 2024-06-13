@@ -233,6 +233,9 @@ def main():
     repos = []
     for repoid in sorted(repo_config):
         try:
+            if not isinstance(repo_config[repoid], dict):
+                # Not a dict, so probably not a repo configuration, skip it
+                continue
             repos.append(yumrepo.YumRepo(repoid, OUTDIR, repo_config[repoid]))
         except Exception as e:
             logger.info('{}: {} (skipping)'.format(repoid, e))
