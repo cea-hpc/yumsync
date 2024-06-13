@@ -80,7 +80,7 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
 
     manager = multiprocessing.Manager()
     queue = manager.Queue()
-    pool = multiprocessing.Pool(processes=processes, initializer=init_worker)
+    pool = multiprocessing.Pool(processes=processes, initializer=init_worker, initargs=[], maxtasksperchild=1)
     process_results = []
 
     def signal_handler(_signum, _frame):
@@ -153,7 +153,8 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
                     if proc.successful():
                         logger.info("A Process ended, removing from waiting list")
                     else:
-                        logger.info("A Process ended with error, removing from waiting list")
+                        prog.update(event['repo_id'], repo_error=event['data'][0])
+                        logger.error("A Process ended with error, removing from waiting list")
                     process_results.remove(proc)
     except KeyboardInterrupt:
         pool.terminate()

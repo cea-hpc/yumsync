@@ -15,7 +15,9 @@ class ErrorCatcher(logging.Handler):
         super().__init__(level=self.levelno)
 
     def emit(self, record):
-        self.callback("{} - {}:{}".format(record.name, record.filename, record.lineno), record.getMessage())
+        # If there is a newline, cut it out and keep only the first line
+        msg = record.getMessage().split('\n')[0]
+        self.callback("{} - {}:{}".format(record.name, record.filename, record.lineno), msg)
 
 class Progress(object):
     """ Handle progress indication using callbacks.

@@ -915,6 +915,9 @@ class YumRepo(object):
         except PackageDownloadError:
             self._callback('repo_error', 'PackageDownloadError')
             return False
+        except dnf.exceptions.Error:
+            self._callback('repo_error', 'DnfError')
+            return False
 
     def __str__(self):
         raw_info = {}
