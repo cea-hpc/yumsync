@@ -47,9 +47,11 @@ class Progress(object):
 
     def __del__(self):
         """ destructor - need to reset the terminal ."""
+        self.clear_term()
+
+    def clear_term(self):
         if sys.stdout.isatty():
-            sys.stdout.write(self.term.normal)
-            sys.stdout.write(self.term.move(self.linecount, 0))
+            sys.stdout.write(self.term.clear)
             sys.stdout.flush()
 
     def log_handler(self, levelno):

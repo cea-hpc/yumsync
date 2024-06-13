@@ -156,5 +156,7 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
         pool.terminate()
         pool.join()
 
+    prog.clear_term()
+
     # Return tuple (#repos, #fail, elapsed time)
     return (len(repos), prog.totals['errors'], prog.elapsed())

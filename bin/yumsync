@@ -202,7 +202,7 @@ def handle_repos(repos, temp_log_hdlr):
 def print_summary(repos, errors, elapsed):
     repo_str = 'repository' if repos == 1 else 'repositories'
     error_str = 'error' if errors == 1 else 'errors'
-    logger.info('{:d} {}, {:d} {}, {}'.format(repos, repo_str, errors, error_str, elapsed))
+    logger.info('Built {:d} {} in {} time, encountered {:d} {}'.format(repos, repo_str, elapsed, errors, error_str))
 
 def main():
     # Set the configuration for the root logger
@@ -263,6 +263,7 @@ def main():
     setup_public(repos)
 
     repos, errors, elapsed = handle_repos(repos, console_hdlr)
+    logging.root.addHandler(console_hdlr)
 
     print_summary(repos, errors, elapsed)
     sys.exit(0)
