@@ -650,8 +650,6 @@ class YumRepo(object):
 
     def get_md_data(self):
         if self.local_dir:
-            # If it's a local_dir, don't bother merging metadata.
-            # Only pick the first available metadata (if any)
             self._repomd = {
                 ("modules", "modules.yaml"): "",
                 ("group", "comps.xml"): "",
