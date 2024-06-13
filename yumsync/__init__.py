@@ -63,8 +63,11 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
 
     # Don't multiprocess when asked
     if multiprocess == False:
+        logging.info("Sync process in mono-process mode, handling repos one by one")
         for repo in repos:
+            logging.info("Syncing repo {}".format(repo.id))
             repo.sync()
+            logging.info("Done syncing repo {}".format(repo.id))
         sys.exit(0)
 
     # Unset console handlers, as the progress UI will take over

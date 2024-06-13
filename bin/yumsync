@@ -208,6 +208,7 @@ def main():
     # Set the configuration for the root logger
     logging.basicConfig(filename=LOGFILE, format='%(asctime)s %(levelname)s:%(name)s:%(lineno)d : %(message)s',level=LOG_LEVEL)
     console_hdlr = logging.StreamHandler(sys.stderr)
+    console_hdlr.setFormatter(logging.Formatter('%(levelname)s %(name)s:%(lineno)d %(message)s'))
     console_hdlr.setLevel(LOG_LEVEL)
     logging.root.addHandler(console_hdlr)
 
@@ -310,8 +311,12 @@ if __name__ == '__main__':
     RELOCATE     = args.relocate
     SEQUENTIAL   = args.sequential
     LOGFILE      = args.logfile
+    # WARNING is the base level
     LOG_LEVEL    = 40 - (10*args.verbose) if args.verbose > 0 else 0
     if SEQUENTIAL:
+        # If no progress UI and log level too high, it can be seen as stuck (no messages)
+        if LOG_LEVEL > logging.INFO:
+            LOG_LEVEL = logging.INFO
         try:
             main()
         except KeyboardInterrupt:
