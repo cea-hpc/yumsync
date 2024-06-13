@@ -69,6 +69,7 @@ class YumRepo(object):
         self.srcpkgs = opts['srcpkgs']
         self.newestonly = opts['newestonly']
         self.labels = opts['labels']
+        self.public_urls = opts['public_urls']
         self._dnfcache_file = util.TemporaryDirectory(prefix='yumsync-', suffix='-dnfcache')
         self._dnfcache = self._dnfcache_file.name
         self.filters = opts['filters']
@@ -172,6 +173,8 @@ class YumRepo(object):
             opts['filters'] = []
         if 'keep_local' not in opts:
             opts['keep_local'] = False
+        if 'public_urls' not in opts:
+            opts['public_urls'] = []
         return opts
 
     @classmethod
@@ -220,6 +223,17 @@ class YumRepo(object):
                     cls._validate_type(filter_op, 'filter operator', str)
                     assert filter_op in ['eq', 'glob', 'gt', 'gte', 'lt', 'lte', 'neq', 'substr', 'eqg', 'upgrade']
                 cls._validate_type(filter_value, 'filter value', str)
+        cls._validate_type(opts['public_urls'], 'public_urls', list)
+        for item in opts['public_urls']:
+            if len(item.keys()) > 1:
+                raise ValueError("Repo {} public URLs configuration cannot be parsed, expecting a list of single key dicts".format(repoid))
+            label = list(item.keys())[0]
+            value = item[label]
+            if label not in opts['labels'] and label not in ('stable', 'latest'):
+                raise ValueError('Repo {} public URLs mentions a non existing label "{}"'.format(repoid, label))
+            cls._validate_type(label, 'label_name_{}'.format(label), str)
+            cls._validate_type(value, 'url_{}'.format(value), str)
+
         if opts['baseurl'] is not None and opts['local_dir'] is not None:
             raise ValueError('Repo {} cannot be configured with local_dir and baseurl at the same time'.format(repoid))
         cls._validate_type(opts['keep_local'], 'keep_local', bool)
