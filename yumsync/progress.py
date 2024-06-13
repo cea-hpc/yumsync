@@ -8,6 +8,15 @@ import dnf
 
 logger = logging.getLogger(__name__)
 
+class ErrorCatcher(logging.Handler):
+    def __init__(self, callback, levelno):
+        self.callback = callback
+        self.levelno = levelno
+        super().__init__(level=self.levelno)
+
+    def emit(self, record):
+        self.callback("{} - {}:{}".format(record.name, record.filename, record.lineno), record.getMessage())
+
 class Progress(object):
     """ Handle progress indication using callbacks.
 
@@ -38,11 +47,17 @@ class Progress(object):
 
     def __del__(self):
         """ destructor - need to reset the terminal ."""
-
         if sys.stdout.isatty():
             sys.stdout.write(self.term.normal)
             sys.stdout.write(self.term.move(self.linecount, 0))
             sys.stdout.flush()
+
+    def log_handler(self, levelno):
+        return ErrorCatcher(self.add_error, levelno)
+
+    def add_error(self, spec, message):
+        self.totals['errors'] += 1
+        self.errors.append((spec, message))
 
     def update(self, repo_id, set_total=None, pkgs_downloaded=None,
                pkg_exists=None, repo_metadata=None, repo_error=None, pkgs_deleted=None):
@@ -295,8 +310,8 @@ class Progress(object):
 
         # Append errors to output if any found.
         if self.totals['errors'] > 0:
-            self.emit(self.color('Errors ({}):'.format(self.totals['errors']), 'red'))
-            for repo_id, error in self.errors:
+            self.emit(self.color('Errors ({}, last 20 are printed here):'.format(self.totals['errors']), 'red'))
+            for repo_id, error in self.errors[-20:]:
                 self.emit(self.color('{}: {}'.format(repo_id, error), 'red'))
 
         with self.term.location(x=0, y=self.linecount):

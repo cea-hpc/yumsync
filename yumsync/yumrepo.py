@@ -89,11 +89,21 @@ class YumRepo(object):
         self.__repo_callback_obj = None
         self.__yum_callback_obj = None
 
+        # MProcess queue
+        self._queue = None
+
         # set repo placeholders
         self._packages = []
         self._package_headers = {}
         self._comps = None
         self._repomd = None
+
+    def setup_logger(self):
+        if self._queue != None:
+            logging.getLogger().addHandler(logging.handlers.QueueHandler(self._queue))
+            logging.getLogger().setLevel(logging.DEBUG)
+        elif self._yum_callback_obj != None:
+            logger.error("No queue for log forwarding to master process in multiprocess mode")
 
     def setup(self):
         # set actual repo object
@@ -876,10 +886,12 @@ class YumRepo(object):
             if os.path.lexists(os.path.join(self.dir, 'stable')):
                 os.unlink(os.path.join(self.dir, 'stable'))
 
-    def sync(self, workers=1):
+    def sync(self, workers=1, queue=None):
         self.setup()
+        self._queue = queue
         self._workers = workers
         try:
+            self.setup_logger()
             self.setup_directories()
             self.download_gpgkey()
             self.prepare_packages()

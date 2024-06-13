@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 import six
 import signal
 
+import traceback
+
 def pickle_method(method):
     func_name = method.im_func.__name__
     obj = method.im_self
@@ -66,6 +68,8 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
         sys.exit(0)
 
     prog = progress.Progress()  # callbacks talk to this object
+    logging.root.addHandler(prog.log_handler(logging.WARNING))
+
     manager = multiprocessing.Manager()
     queue = manager.Queue()
     pool = multiprocessing.Pool(processes=processes, initializer=init_worker)
@@ -87,7 +91,8 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
     signal.signal(signal.SIGTERM, signal_handler)
 
     def err_callback(exc):
-        logger.exception("A process ended with error")
+        logger.error("A process ended with error, traceback follows")
+        logger.error("\n".join(traceback.format_exception(type(exc), exc, exc.__traceback__)))
 
     for repo in repos:
         logger.debug("Setup callback and async job for repo {}".format(repo.id))
@@ -99,9 +104,9 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
         repo.set_repo_callback(repocallback)
 
         if six.PY2:
-            process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers}))
+            process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers, "queue": queue}))
         elif six.PY3:
-            process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers}, error_callback=err_callback))
+            process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers, "queue": queue}, error_callback=err_callback))
 
     try:
         while len(process_results) > 0:
@@ -111,6 +116,9 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
             # nonlocal keyword).
             while not queue.empty():
                 event = queue.get()
+                if isinstance(event, logging.LogRecord):
+                    logging.getLogger(event.name).handle(event)
+                    continue
                 logger.info("Process queue event {}".format(event))
                 if not 'action' in event:
                     continue
