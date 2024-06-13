@@ -102,7 +102,7 @@ class YumRepo(object):
         if self._queue != None:
             logging.getLogger().addHandler(logging.handlers.QueueHandler(self._queue))
             logging.getLogger().setLevel(logging.DEBUG)
-        elif self._yum_callback_obj != None:
+        elif self.__yum_callback_obj != None:
             logger.error("No queue for log forwarding to master process in multiprocess mode")
 
     def setup(self):
