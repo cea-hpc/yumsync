@@ -240,20 +240,24 @@ def main():
             continue
 
     logger.info('{:d} repos to sync'.format(len(repos)))
-    if SHOWONLY:
-        print('{:d} repos to sync'.format(len(repos)))
     if len(repos) < 1: sys.exit(0)
 
     padding = len(str(len(repos)))
     for index, repo in enumerate(repos):
         repo_str = '{} (local)'.format(repo.id) if repo.local_dir else repo.id
-        logger.info('{:{}d}) {}'.format(index + 1, padding, repo_str))
-        if SHOWONLY:
-            print('{:{}d}) {}'.format(index + 1, padding, repo_str))
+        repo_str = '{} (remote)'.format(repo.id) if repo.baseurl else repo_str
+        logger.info('\t{:{}d}) {}'.format(index + 1, padding, repo_str))
+        if repo.labels or repo.stable:
+            logger.info('\tConfigured labels: ')
+            if repo.stable:
+                logger.info('\t\t- {} => {}'.format('stable', repo.stable))
+            if repo.labels:
+                for label, value in six.iteritems(repo.labels):
+                    logger.info('\t\t- {} => {}'.format(label, value))
+
+
     if SHOWONLY:
         logger.warning('Exiting without performing changes...')
-        if SHOWONLY:
-            print('Exiting without performing changes...')
         sys.exit(0)
 
     if STABLEONLY == True:
@@ -326,10 +330,12 @@ if __name__ == '__main__':
     LOGFILE      = args.logfile
     # WARNING is the base level
     LOG_LEVEL    = 40 - (10*args.verbose) if args.verbose > 0 else 0
-    if SEQUENTIAL:
+    if SEQUENTIAL or SHOWONLY:
         # If no progress UI and log level too high, it can be seen as stuck (no messages)
         if LOG_LEVEL > logging.INFO:
             LOG_LEVEL = logging.INFO
+
+    if SEQUENTIAL:
         try:
             main()
         except KeyboardInterrupt:
