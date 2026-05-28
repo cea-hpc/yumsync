@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import glob
 import re
 import yumsync
 from multiprocessing import cpu_count
@@ -106,23 +107,31 @@ class mycallback(object):
 
 # load configuration
 def load_config():
-    try:
-        with open(REPOFILE, 'r') as f:
-            config = yaml.safe_load(f)
-            if type(config) != dict: raise SyntaxError
-            return config
-    except IOError as e:
-        logger.fatal("{0}: {1}".format(REPOFILE, e.strerror))
-        sys.exit(1)
-    except SyntaxError as e:
-        logger.fatal('configuration file needs to resolve to a dictionary (hash)')
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        logger.fatal('unable to parse configuration file')
-        if hasattr(e, 'problem_mark'):
-            mark = e.problem_mark
-            logger.fatal('Error at Line {:d}, column {:d}'.format(mark.line+1, mark.column+1))
-        sys.exit(1)
+    global REPOFILE
+    config = {}
+
+    if not isinstance(REPOFILE, list):
+        REPOFILE = [REPOFILE]
+
+    for fil in REPOFILE:
+        try:
+            with open(fil, 'r') as f:
+                tmp_conf = yaml.safe_load(f)
+                if type(tmp_conf) != dict: raise SyntaxError
+                config.update(tmp_conf)
+        except IOError as e:
+            logger.fatal("{0}: {1}".format(fil, e.strerror))
+            sys.exit(1)
+        except SyntaxError as e:
+            logger.fatal('configuration file needs to resolve to a dictionary (hash)')
+            sys.exit(1)
+        except yaml.YAMLError as e:
+            logger.fatal('unable to parse configuration file {0}'.format(fil))
+            if hasattr(e, 'problem_mark'):
+                mark = e.problem_mark
+                logger.fatal('Error at Line {:d}, column {:d}'.format(mark.line+1, mark.column+1))
+            sys.exit(1)
+    return config
 
 # filter repos passed via command line
 def filter_repos(config):
@@ -293,7 +302,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sync YUM repositories with optional versioned snapshots.')
     parser.add_argument('-o', '--directory', action='store', default='/var/lib/yumsync/',
         help='Path to output directory to store repositories, defaults to current directory')
-    parser.add_argument('-c', '--config', action='store', default=os.path.join('/etc/yumsync/config.yaml'),
+    parser.add_argument('-c', '--config', action='store', default='/etc/yumsync/*.yaml',
         help='Path to YAML config file describing repositories, defaults to repos.yml in current directory')
     parser.add_argument('-n', '--name', action='append', required=False,
         help='Name of YUM repository (repeatable) from config file to sync instead of all available')
@@ -318,7 +327,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', action='count', default=1)
 
     args = parser.parse_args()
-    REPOFILE     = args.config
+    REPOFILE     = glob.glob(os.path.join(args.config))
     OUTDIR       = args.directory
     CMDLINEREPOS = args.name
     SHOWONLY     = args.show
