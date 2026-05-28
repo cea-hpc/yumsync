@@ -126,7 +126,7 @@ def load_config():
             logger.fatal('configuration file needs to resolve to a dictionary (hash)')
             sys.exit(1)
         except yaml.YAMLError as e:
-            logger.fatal('unable to parse configuration file')
+            logger.fatal('unable to parse configuration file {0}'.format(fil))
             if hasattr(e, 'problem_mark'):
                 mark = e.problem_mark
                 logger.fatal('Error at Line {:d}, column {:d}'.format(mark.line+1, mark.column+1))
